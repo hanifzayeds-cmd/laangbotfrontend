@@ -42,7 +42,8 @@
       flex-shrink: 0;
       height: 100vh;
       overflow: hidden;
-      z-index: 10;
+      z-index: 100; /* Increased z-index for mobile overlay layering */
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .sidebar-brand {
@@ -208,12 +209,49 @@
       background: rgba(10, 15, 26, 0.2);
     }
 
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 70%;
+    }
+
+    .menu-btn {
+      display: none;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #f1f5f9;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 10px;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .menu-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 90;
+    }
+
     .header h3 {
       font-weight: 600;
       font-size: 16px;
       letter-spacing: -0.2px;
       color: #f1f5f9;
-      max-width: 400px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -328,7 +366,7 @@
       width: 100%;
       font-size: 13.5px;
       border-radius: 8px;
-      overflow: hidden;
+      overflow-x: auto;
       border: 1px solid rgba(255, 255, 255, 0.06);
     }
     .message.ai .bubble th, .message.ai .bubble td {
@@ -466,7 +504,7 @@
       align-items: center;
     }
 
-    .input-area .input-wrap {
+    .input-wrap {
       flex: 1;
       display: flex;
       background: rgba(7, 10, 18, 0.4);
@@ -492,6 +530,7 @@
       font-size: 14.5px;
       outline: none;
       font-weight: 400;
+      width: 100%;
     }
     .input-area input::placeholder { color: #475569; }
 
@@ -580,14 +619,32 @@
       .input-area { padding: 16px 20px 20px; }
     }
     @media (max-width: 640px) {
-      .sidebar { display: none; }
+      .sidebar { 
+        position: fixed;
+        left: 0;
+        top: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .menu-btn, .sidebar-overlay.open {
+        display: flex;
+      }
       .container { border-radius: 16px; height: 100%; }
       .main-content { padding: 0; }
+      .header { padding: 14px 16px; }
+      .messages { padding: 16px; gap: 18px; }
+      .message-wrapper { max-width: 88%; }
+      .copy-btn { opacity: 1; } /* Always show copy buttons on mobile since there's no hover */
+      .input-area { padding: 12px 14px 16px; gap: 8px; }
+      .send-btn { padding: 12px 18px; }
     }
   </style>
 </head>
 <body>
-  <aside class="sidebar">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <h2>DeepChat</h2>
       <span>AI</span>
@@ -600,7 +657,10 @@
   <div class="main-content">
     <div class="container" id="chatApp">
       <div class="header">
-        <h3 id="currentThreadTitle">New conversation</h3>
+        <div class="header-left">
+          <button class="menu-btn" id="menuBtn" title="Open Navigation">☰</button>
+          <h3 id="currentThreadTitle">New conversation</h3>
+        </div>
         <span class="status" id="status">Online</span>
       </div>
 
@@ -634,6 +694,9 @@
       const chatList = document.getElementById('chatList');
       const threadTitle = document.getElementById('currentThreadTitle');
       const newChatBtn = document.getElementById('newChatBtn');
+      const sidebar = document.getElementById('sidebar');
+      const menuBtn = document.getElementById('menuBtn');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
 
       // ---------- BACKEND URL (LIVE) ----------
       const BACKEND_URL = 'https://deepchat-backend-tyss.onrender.com';
@@ -645,6 +708,15 @@
       let chatTitleMap = {};
       let threadCounter = 0;
       let abortController = null;
+
+      // ---------- mobile UI logic ----------
+      function toggleSidebar() {
+        sidebar.classList.toggle('open');
+        sidebarOverlay.classList.toggle('open');
+      }
+
+      menuBtn.addEventListener('click', toggleSidebar);
+      sidebarOverlay.addEventListener('click', toggleSidebar);
 
       // ---------- helpers ----------
       function generateId() { return 'thr_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
@@ -678,6 +750,7 @@
           item.addEventListener('click', (e) => {
             if (e.target.classList.contains('delete-btn')) return;
             switchChat(id);
+            if (sidebar.classList.contains('open')) toggleSidebar(); // Close sidebar on selection (mobile)
           });
           const del = item.querySelector('.delete-btn');
           del.addEventListener('click', (e) => {
@@ -1066,7 +1139,10 @@
       // ---------- events ----------
       sendBtn.addEventListener('click', sendMessage);
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-      newChatBtn.addEventListener('click', createNewChat);
+      newChatBtn.addEventListener('click', () => {
+        createNewChat();
+        if (sidebar.classList.contains('open')) toggleSidebar(); // Close sidebar on click (mobile)
+      });
 
       // init
       createNewChat();
