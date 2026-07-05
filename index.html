@@ -18,6 +18,7 @@
       max-width: 100%;
       overflow-x: hidden;
       position: fixed; /* Prevents bounce scrolling and side-slip on mobile */
+      background: #0b0f19;
     }
 
     body {
@@ -25,7 +26,7 @@
       background: radial-gradient(circle at 50% 0%, #131926 0%, #07090e 100%);
       color: #f1f5f9;
       height: 100vh;
-      height: 100dvh; /* Uses Dynamic Viewport Height to account for mobile address/nav bars */
+      height: 100dvh; /* Dynamic Viewport to account for mobile address bars */
       overflow: hidden;
       display: flex;
       -webkit-font-smoothing: antialiased;
@@ -159,6 +160,7 @@
       max-width: 180px;
     }
 
+    /* Fixed: Re-enabled individual delete control assets */
     .delete-btn {
       background: none;
       border: none;
@@ -237,11 +239,6 @@
       border-radius: 10px;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s;
-    }
-
-    .menu-btn:hover {
-      background: rgba(255, 255, 255, 0.08);
     }
 
     .sidebar-overlay {
@@ -377,7 +374,7 @@
       width: 100%;
       font-size: 13.5px;
       border-radius: 8px;
-      overflow-x: auto;
+      overflow: hidden;
       border: 1px solid rgba(255, 255, 255, 0.06);
     }
     .message.ai .bubble th, .message.ai .bubble td {
@@ -504,18 +501,18 @@
       letter-spacing: 0.1px;
     }
 
-    /* ----- Enhanced Input Area Array ----- */
+    /* ----- Fixed: Blended Bottom Bar Background ----- */
     .input-area {
       padding: 20px 32px 28px;
       border-top: 1px solid rgba(255, 255, 255, 0.04);
       display: flex;
       gap: 14px;
-      background: rgba(8, 12, 21, 0.2);
+      background: rgba(13, 20, 33, 0.45); /* Blends perfectly into container parent element */
       flex-shrink: 0;
       align-items: center;
     }
 
-    .input-wrap {
+    .input-area .input-wrap {
       flex: 1;
       display: flex;
       background: rgba(7, 10, 18, 0.4);
@@ -541,7 +538,6 @@
       font-size: 14.5px;
       outline: none;
       font-weight: 400;
-      width: 100%;
     }
     .input-area input::placeholder { color: #475569; }
 
@@ -636,21 +632,20 @@
         top: 0;
         transform: translateX(-100%);
         height: 100dvh;
+        background: rgb(13, 20, 33);
+        backdrop-filter: none;
       }
-      .sidebar.open {
-        transform: translateX(0);
-      }
-      .menu-btn, .sidebar-overlay.open {
-        display: flex;
-      }
-      .container { border-radius: 0; height: 100%; width: 100%; border: none; }
+      .sidebar.open { transform: translateX(0); }
+      .menu-btn, .sidebar-overlay.open { display: flex; }
+      
       .main-content { padding: 0; height: 100%; width: 100%; }
+      .container { border-radius: 0; border: none; height: 100%; background: rgb(13, 20, 33); }
+      .input-area { background: rgb(13, 20, 33); padding: 12px 14px 16px; }
+      
       .header { padding: 14px 16px; }
-      .messages { padding: 16px; gap: 18px; }
+      .messages { padding: 16px; }
       .message-wrapper { max-width: 88%; }
       .copy-btn { opacity: 1; }
-      .input-area { padding: 12px 14px 16px; gap: 8px; }
-      .send-btn { padding: 12px 18px; }
     }
   </style>
 </head>
@@ -718,10 +713,9 @@
       let isProcessing = false;
       let chats = {};
       let chatTitleMap = {};
-      let threadCounter = 0;
       let abortController = null;
 
-      // ---------- mobile UI logic ----------
+      // ---------- Sidebar Navigation Controls ----------
       function toggleSidebar() {
         sidebar.classList.toggle('open');
         sidebarOverlay.classList.toggle('open');
@@ -739,7 +733,7 @@
         return clean || 'New Chat';
       }
 
-      // ---------- render chat list ----------
+      // ---------- render chat list (With Action Triggers) ----------
       function renderChatList() {
         const ids = Object.keys(chats);
         if (ids.length === 0) {
@@ -828,20 +822,14 @@
       function formatText(text) {
         let html = text;
         
-        // Headers
         html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
         html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
         html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
-        
-        // Bold
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
-        
-        // Italic
         html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
         html = html.replace(/_(.*?)_/g, '<em>$1</em>');
         
-        // Tables
         const tableRegex = /\|(.+)\|\s*\n\|([-:| ]+)\|\s*\n((?:\|.+\|\s*\n)+)/g;
         html = html.replace(tableRegex, function(match, headerRow, separatorRow, dataRows) {
           const headers = headerRow.split('|').map(h => h.trim()).filter(h => h);
@@ -859,18 +847,11 @@
           return tableHtml;
         });
         
-        // Code blocks
         html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
         html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-        
-        // Blockquotes
         html = html.replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>');
-        
-        // Unordered lists
         html = html.replace(/^- (.*$)/gm, '<li>$1</li>');
         html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>');
-        
-        // Ordered lists
         html = html.replace(/^\d+\. (.*$)/gm, '<li>$1</li>');
         html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, function(match) {
           if (!match.includes('<ul>')) {
@@ -879,7 +860,6 @@
           return match;
         });
         
-        // Paragraphs
         const lines = html.split('\n');
         let result = [];
         for (let line of lines) {
@@ -899,12 +879,8 @@
 
       // ---------- append message (DOM) ----------
       function appendMessage(role, content, save = true) {
-        if (!currentThreadId) {
-          createNewChat();
-        }
-        if (save) {
-          chats[currentThreadId].push({ role, content });
-        }
+        if (!currentThreadId) createNewChat();
+        if (save) chats[currentThreadId].push({ role, content });
         
         const empty = messagesEl.querySelector('.empty-state');
         if (empty) empty.remove();
@@ -940,34 +916,27 @@
         return div;
       }
 
-      // ---------- update AI message streaming ----------
       let streamingDiv = null;
       let streamBuffer = '';
-      let streamWordCount = 0;
 
       function resetStreaming() {
         streamingDiv = null;
         streamBuffer = '';
-        streamWordCount = 0;
       }
 
       function appendStreamingChunk(chunk) {
         if (!currentThreadId) createNewChat();
         streamBuffer += chunk;
-        streamWordCount += chunk.split(' ').length;
         
         if (!streamingDiv) {
           streamingDiv = appendMessage('ai', streamBuffer, false);
         } else {
           const bubble = streamingDiv.querySelector('.bubble');
-          if (bubble) {
-            bubble.innerHTML = formatText(streamBuffer);
-          }
+          if (bubble) bubble.innerHTML = formatText(streamBuffer);
           messagesEl.scrollTop = messagesEl.scrollHeight;
         }
       }
 
-      // ---------- finalize streaming ----------
       function finalizeStreaming() {
         if (streamingDiv && streamBuffer) {
           const history = chats[currentThreadId];
@@ -1004,11 +973,7 @@
         resetStreaming();
 
         abortController = new AbortController();
-        const timeoutId = setTimeout(() => {
-          if (abortController) {
-            abortController.abort();
-          }
-        }, 60000);
+        const timeoutId = setTimeout(() => { if (abortController) abortController.abort(); }, 60000);
 
         try {
           const response = await fetch(`${BACKEND_URL}/api/chat/stream`, {
@@ -1019,10 +984,7 @@
           });
 
           clearTimeout(timeoutId);
-
-          if (!response.ok) {
-            throw new Error(`Server error (${response.status})`);
-          }
+          if (!response.ok) throw new Error(`Server error (${response.status})`);
 
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
@@ -1032,9 +994,7 @@
             const { done, value } = await reader.read();
             if (done) break;
             
-            const chunk = decoder.decode(value, { stream: true });
-            buffer += chunk;
-
+            buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
@@ -1045,33 +1005,19 @@
                   if (!jsonStr) continue;
                   const data = JSON.parse(jsonStr);
                   
-                  if (data.content) {
-                    appendStreamingChunk(data.content);
-                  }
-                  if (data.error) {
-                    throw new Error(data.error);
-                  }
+                  if (data.content) appendStreamingChunk(data.content);
+                  if (data.error) throw new Error(data.error);
                 } catch (parseErr) {}
               }
             }
           }
-
           finalizeStreaming();
 
         } catch (err) {
           clearTimeout(timeoutId);
-          console.error('Error:', err);
-          
-          let errorMsg = err.message;
-          if (err.name === 'AbortError') {
-            errorMsg = 'Request timed out. The response is taking too long.';
-          }
-          
+          let errorMsg = err.name === 'AbortError' ? 'Request timed out.' : err.message;
           if (streamingDiv) {
-            const bubble = streamingDiv.querySelector('.bubble');
-            if (bubble) {
-              bubble.innerHTML = `⚠️ ${errorMsg}`;
-            }
+            streamingDiv.querySelector('.bubble').innerHTML = `⚠️ ${errorMsg}`;
             chats[currentThreadId].push({ role: 'ai', content: `⚠️ ${errorMsg}` });
           } else {
             appendMessage('ai', `⚠️ ${errorMsg}`);
@@ -1086,7 +1032,7 @@
         }
       }
 
-      // ---------- speech to text ----------
+      // ---------- speech to text (Web Speech) ----------
       let recognition = null;
       let isListening = false;
 
@@ -1099,67 +1045,34 @@
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SR();
         recognition.lang = 'en-US';
-        recognition.interimResults = false;
-        recognition.continuous = false;
-
+        
         recognition.onresult = (event) => {
-          const transcript = event.results[0][0].transcript;
-          input.value = transcript;
-          micBtn.classList.remove('listening');
-          isListening = false;
+          input.value = event.results[0][0].transcript;
         };
-        recognition.onerror = () => {
-          micBtn.classList.remove('listening');
-          isListening = false;
-        };
-        recognition.onend = () => {
-          micBtn.classList.remove('listening');
-          isListening = false;
-        };
+        recognition.onend = () => { micBtn.classList.remove('listening'); isListening = false; };
       }
 
       micBtn.addEventListener('click', () => {
-        if (!recognition) {
-          initSpeech();
-          if (!recognition) return;
-        }
-        if (isListening) {
-          recognition.stop();
-          micBtn.classList.remove('listening');
-          isListening = false;
-          return;
-        }
-        try {
-          recognition.start();
-          micBtn.classList.add('listening');
-          isListening = true;
-        } catch (e) {}
+        if (!recognition) { initSpeech(); if (!recognition) return; }
+        if (isListening) { recognition.stop(); return; }
+        try { recognition.start(); micBtn.classList.add('listening'); isListening = true; } catch (e) {}
       });
 
-      // ---------- events ----------
       sendBtn.addEventListener('click', sendMessage);
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-      newChatBtn.addEventListener('click', () => {
-        createNewChat();
-        if (sidebar.classList.contains('open')) toggleSidebar();
-      });
+      newChatBtn.addEventListener('click', createNewChat);
 
-      // init
       createNewChat();
       initSpeech();
 
-      // 3D tilt (subtle)
+      // Subtle Perspective Shift
       const container = document.getElementById('chatApp');
       document.addEventListener('mousemove', (e) => {
-        if (window.innerWidth <= 640) return; // Disable tilt on mobile entirely
-        const x = (window.innerWidth / 2 - e.pageX) / 100;
-        const y = (window.innerHeight / 2 - e.pageY) / 100;
-        container.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+        const x = (window.innerWidth / 2 - e.pageX) / 140;
+        const y = (window.innerHeight / 2 - e.pageY) / 140;
+        if(window.innerWidth > 640) container.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
       });
-      document.addEventListener('mouseleave', () => {
-        container.style.transform = 'rotateY(0deg) rotateX(0deg)';
-      });
-
+      document.addEventListener('mouseleave', () => { container.style.transform = 'rotateY(0deg) rotateX(0deg)'; });
     })();
   </script>
 </body>
